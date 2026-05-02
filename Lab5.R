@@ -252,3 +252,193 @@ ggplot() +
        title = "Change in work-from-home population",
        subtitle = "Maricopa County, Arizona") +
   theme_void()
+
+#-------------------------------------------------------------------------------
+# 7.4 Distance and proximity analysis (SKIPPING THIS SECTION)
+#-------------------------------------------------------------------------------
+
+# 7.5 Spatial overlay
+ny <- get_acs(
+  geography = "tract",
+  variables = "B19013_001",
+  state = "NY",
+  county = "New York",
+  year = 2020,
+  geometry = TRUE
+)
+ggplot(ny) +
+  geom_sf(aes(fill = estimate)) +
+  scale_fill_viridis_c(labels = scales::label_dollar()) +
+  theme_void() +
+  labs(fill = "Median household\nincome")
+
+# 7.5.1 Erasing areas from Census polygons
+ny2 <- get_acs(
+  geography = "tract",
+  variables = "B19013_001",
+  state = "NY",
+  county = "New York",
+  geometry = TRUE,
+  year = 2020,
+  cb = FALSE
+) %>%
+  st_transform(6538)
+
+ny_erase <- erase_water(ny2)
+
+ggplot(ny_erase) +
+  geom_sf(aes(fill = estimate)) +
+  scale_fill_viridis_c(labels = scales::label_dollar()) +
+  theme_void() +
+  labs(fill = "Median household\nincome")
+
+#-------------------------------------------------------------------------------
+
+# 7.6 Spatial neighborhoods and spatial weights matrices
+library(spdep)
+
+# CRS: NAD83 / Texas North Central
+dfw <- core_based_statistical_areas(cb = TRUE, year = 2020) %>%
+  filter(str_detect(NAME, "Dallas")) %>%
+  st_transform(32138)
+dfw_tracts <- get_acs(
+  geography = "tract",
+  variables = "B01002_001",
+  state = "TX",
+  year = 2020,
+  geometry = TRUE
+) %>%
+  st_transform(32138) %>%
+  st_filter(dfw, .predicate = st_within) %>%
+  na.omit()
+
+# Map of median age estimates in dfw
+ggplot(dfw_tracts) +
+  geom_sf(aes(fill = estimate), color = NA) +
+  scale_fill_viridis_c() +
+  theme_void()
+
+# Producing neighbors list (on average, tracts in dfw have roughly 6.43 neighbors)
+neighbors <- poly2nb(dfw_tracts, queen = TRUE)
+summary(neighbors)
+
+# Blue line connects each polygon w/ neighbors here
+dfw_coords <- dfw_tracts %>%
+  st_centroid() %>%
+  st_coordinates()
+plot(dfw_tracts$geometry)
+plot(neighbors,
+     coords = dfw_coords,
+     add = TRUE,
+     col = "blue",
+     points = FALSE)
+
+# Get the row indices of the neighbors of the Census tract at row index 1
+neighbors[[1]]
+
+# 7.6.2 Generating the spatial weights matrix
+weights <- nb2listw(neighbors, style = "W")
+weights$weights[[1]]
+
+#-------------------------------------------------------------------------------
+
+# 7.7 Global and local spatial autocorrelation
+# This is the main rule of geography, everythign is related to everything else,
+# but near things are more closely related than far things
+
+# 7.7.1
+dfw_tracts$lag_estimate <- lag.listw(weights, dfw_tracts$estimate)
+
+ggplot(dfw_tracts, aes(x = estimate, y = lag_estimate)) +
+  geom_point(alpha = 0.3) +
+  geom_abline(color = "red") +
+  theme_minimal() +
+  labs(title = "Median age by Census tract, Dallas-Fort Worth TX",
+       x = "Median age",
+       y = "Spatial lag, median age",
+       caption = "Data source: 2016-2020 ACS via the tidycensus R package.")
+
+moran.test(dfw_tracts$estimate, weights)
+
+# 7.7.2 Local spatial autocorrelation (BROKEN)
+
+# For Gi*, re-compute the weights with`include.self()`
+localg_weights <- nb2listw(include.self(neighbors))
+
+dfw_tracts$localG <- localG(dfw_tracts$estimate, localg_weights)
+
+#ggplot(dfw_tracts) +
+ # geom_sf(aes(fill = localG), color = NA) +
+ # scale_fill_distiller(palette = "RdYlBu") +
+ # theme_void() +
+ # labs(fill = "Local Gi* statistic")
+
+dfw_tracts <- dfw_tracts %>%
+  mutate(hotspot = case_when(
+    localG >= 2.56 ~ "High cluster",
+    localG <= -2.56 ~ "Low cluster",
+    TRUE ~ "Not significant"
+  ))
+
+ggplot(dfw_tracts) +
+  geom_sf(aes(fill = hotspot), color = "grey90", size = 0.1) +
+  scale_fill_manual(values = c("red", "blue", "grey")) +
+  theme_void()
+
+# 7.7.3 Identifying clusters and spatial outliers with local indicators of spatial association (LISA)
+set.seed(1983)
+
+dfw_tracts$scaled_estimate <- as.numeric(scale(dfw_tracts$estimate))
+
+dfw_lisa <- localmoran_perm(
+  dfw_tracts$scaled_estimate,
+  weights,
+  nsim = 999L,
+  alternative = "two.sided"
+) %>%
+  as_tibble() %>%
+  set_names(c("local_i", "exp_i", "var_i", "z_i", "p_i",
+              "p_i_sim", "pi_sim_folded", "skewness", "kurtosis"))
+
+dfw_lisa_df <- dfw_tracts %>%
+  select(GEOID, scaled_estimate) %>%
+  mutate(lagged_estimate = lag.listw(weights, scaled_estimate)) %>%
+  bind_cols(dfw_lisa)
+
+dfw_lisa_clusters <- dfw_lisa_df %>%
+  mutate(lisa_cluster = case_when(
+    p_i >= 0.05 ~ "Not significant",
+    scaled_estimate > 0 & local_i > 0 ~ "High-high",
+    scaled_estimate > 0 & local_i < 0 ~ "High-low",
+    scaled_estimate < 0 & local_i > 0 ~ "Low-low",
+    scaled_estimate < 0 & local_i < 0 ~ "Low-high"
+  ))
+
+# LISA quadrant plot
+color_values <- c(`High-high`
+                  = "red",
+                  `High-low`
+                  = "pink",
+                  `Low-low`
+                  = "blue",
+                  `Low-high`
+                  = "lightblue",
+                  `Not significant`
+                  = "white")
+ggplot(dfw_lisa_clusters, aes(x = scaled_estimate,
+                              y = lagged_estimate,
+                              fill = lisa_cluster)) +
+  geom_point(color = "black", shape = 21, size = 2) +
+  theme_minimal() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  scale_fill_manual(values = color_values) +
+  labs(x = "Median age (z-score)",
+       y = "Spatial lag of median age (z-score)",
+       fill = "Cluster type")
+
+ggplot(dfw_lisa_clusters, aes(fill = lisa_cluster)) +
+  geom_sf(size = 0.1) +
+  theme_void() +
+  scale_fill_manual(values = color_values) +
+  labs(fill = "Cluster type")
