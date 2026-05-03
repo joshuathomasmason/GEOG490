@@ -1,0 +1,23 @@
+"1","
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudG90YWxfcG9wdWxhdGlvbl8xMCA8LSBnZXRfZGVjZW5uaWFsKFxuICBnZW9ncmFwaHkgPSBcInN0YXRlXCIsXG4gIHZhcmlhYmxlcyA9IFwiUDAwMTAwMVwiLFxuICB5ZWFyID0gMjAxMFxuKVxuYGBgIn0= -->
+
+```r
+total_population_10 <- get_decennial(
+  geography = \"state\",
+  variables = \"P001001\",
+  year = 2010
+)
+```
+
+<!-- rnb-source-end -->
+"
+"0","```r
+total_population_10 <- get_decennial(
+  geography = \"state\",
+  variables = \"P001001\",
+  year = 2010
+)
+```"
+"1","Getting data from the 2010 decennial Census
+Using Census Summary File 1
+"

@@ -1,0 +1,26 @@
+"1","
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShcInRpZHljZW5zdXNcIilcbmBgYCJ9 -->
+
+```r
+library(\"tidycensus\")
+```
+
+<!-- rnb-source-end -->
+"
+"0","```r
+library(\"tidycensus\")
+```"
+"1","Warning: package ‘tidycensus’ was built under R version 4.4.3
+"
+"1","
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBjZW5zdXNfYXBpX2tleShcIjNhNzI0YWUwYTNkMTZlZjU5ZGQ3YjE2ZGIwMzYxOTNlMDk1NzgyN2JcIiwgaW5zdGFsbCA9IFRSVUUpXG5gYGAifQ== -->
+
+```r
+# census_api_key(\"3a724ae0a3d16ef59dd7b16db036193e0957827b\", install = TRUE)
+```
+
+<!-- rnb-source-end -->
+"
+"0","```r
+# census_api_key(\"3a724ae0a3d16ef59dd7b16db036193e0957827b\", install = TRUE)
+```"

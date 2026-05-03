@@ -1,0 +1,21 @@
+"1","
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaW5zdGFsbC5wYWNrYWdlcyhcInRpZHljZW5zdXNcIilcbmBgYCJ9 -->
+
+```r
+install.packages(\"tidycensus\")
+```
+
+<!-- rnb-source-end -->
+"
+"0","```r
+install.packages(\"tidycensus\")
+```"
+"1","trying URL 'https://cran.rstudio.com/bin/macosx/big-sur-arm64/contrib/4.4/tidycensus_1.7.5.tgz'
+Content type 'application/x-gzip' length 3512498 bytes (3.3 MB)
+==================================================
+downloaded 3.3 MB
+"
+"1","
+The downloaded binary packages are in
+	/var/folders/92/1f6r60ls1fl792p8_hjpqw8m0000gn/T//RtmpvX8K2u/downloaded_packages
+"

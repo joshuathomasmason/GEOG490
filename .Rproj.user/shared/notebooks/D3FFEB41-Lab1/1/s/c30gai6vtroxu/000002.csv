@@ -1,0 +1,26 @@
+"1","
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubWRfZG90cyA9IGFzX2RvdF9kZW5zaXR5KFxuICBtZF9yYWNlLFxuICB2YWx1ZSA9IFwidmFsdWVcIixcbiAgdmFsdWVzX3Blcl9kb3QgPSA1MDAsXG4gIGdyb3VwID0gXCJ2YXJpYWJsZVwiXG4pXG5cbmJhY2tncm91bmRfdHJhY3RzID0gZmlsdGVyKG1kX3JhY2UsIHZhcmlhYmxlID09IFwiV2hpdGVcIilcbmBgYCJ9 -->
+
+```r
+md_dots = as_dot_density(
+  md_race,
+  value = \"value\",
+  values_per_dot = 500,
+  group = \"variable\"
+)
+
+background_tracts = filter(md_race, variable == \"White\")
+```
+
+<!-- rnb-source-end -->
+"
+"0","```r
+md_dots = as_dot_density(
+  md_race,
+  value = \"value\",
+  values_per_dot = 500,
+  group = \"variable\"
+)
+
+background_tracts = filter(md_race, variable == \"White\")
+```"

@@ -1,0 +1,72 @@
+"1","
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeSh0aWR5Y2Vuc3VzKVxuYGBgIn0= -->
+
+```r
+library(tidycensus)
+```
+
+<!-- rnb-source-end -->
+"
+"0","```r
+library(tidycensus)
+```"
+"1","Warning: package ‘tidycensus’ was built under R version 4.4.3
+"
+"1","
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeSh0aWR5dmVyc2UpXG5gYGAifQ== -->
+
+```r
+library(tidyverse)
+```
+
+<!-- rnb-source-end -->
+"
+"0","```r
+library(tidyverse)
+```"
+"1","── Attaching core tidyverse packages ─────────────────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.4     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     ── Conflicts ───────────────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the ]8;;http://conflicted.r-lib.org/conflicted package]8;; to force all conflicts to become errors
+"
+"1","
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeSh0bWFwKVxuYGBgIn0= -->
+
+```r
+library(tmap)
+```
+
+<!-- rnb-source-end -->
+"
+"0","```r
+library(tmap)
+```"
+"1","Registered S3 method overwritten by 'data.table':
+  method           from
+  print.data.table     
+Registered S3 method overwritten by 'htmlwidgets':
+  method           from         
+  print.htmlwidget tools:rstudio
+"
+"1","
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShtYXB2aWV3KVxubGlicmFyeSh0aWdyaXMpXG5gYGAifQ== -->
+
+```r
+library(mapview)
+library(tigris)
+```
+
+<!-- rnb-source-end -->
+"
+"0","```r
+library(mapview)
+library(tigris)
+```"
+"1","To enable caching of data, set `options(tigris_use_cache = TRUE)`
+in your R script or .Rprofile.
+"

@@ -1,0 +1,29 @@
+"1","
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYWlhbl8yMDIwIDwtIGdldF9kZWNlbm5pYWwoXG4gIGdlb2dyYXBoeSA9IFwic3RhdGVcIixcbiAgdmFyaWFibGVzID0gXCJQMV8wMDVOXCIsXG4gIHllYXIgPSAyMDIwLFxuICBzdW1maWxlID0gXCJwbFwiXG4pXG5gYGAifQ== -->
+
+```r
+aian_2020 <- get_decennial(
+  geography = \"state\",
+  variables = \"P1_005N\",
+  year = 2020,
+  sumfile = \"pl\"
+)
+```
+
+<!-- rnb-source-end -->
+"
+"0","```r
+aian_2020 <- get_decennial(
+  geography = \"state\",
+  variables = \"P1_005N\",
+  year = 2020,
+  sumfile = \"pl\"
+)
+```"
+"1","Getting data from the 2020 decennial Census
+Using the PL 94-171 Redistricting Data Summary File
+Note: 2020 decennial Census data use differential privacy, a technique that
+introduces errors into data to preserve respondent confidentiality.
+ℹ Small counts should be interpreted with caution.
+ℹ See https://www.census.gov/library/fact-sheets/2021/protecting-the-confidentiality-of-the-2020-census-redistricting-data.html for additional guidance.
+"
