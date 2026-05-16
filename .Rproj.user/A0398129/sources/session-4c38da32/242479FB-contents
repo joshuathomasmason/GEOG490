@@ -1,0 +1,108 @@
+# Wednesday, April 15, 2026
+# Lab 3 Submission Section: Dot Density, Graduated Symbols, Income Choropleth
+# Student: Joshua Mason
+# Notes: N/A
+
+# Libraries
+library(tidycensus) # For acquiring Census data
+library(tmap)       # For producing maps
+library(dplyr)      # For data filtering
+library(ggplot2)    # For simple income map
+#-------------------------------------------------------------------------------
+# CREATING A DOT DENSITY MAP OF RACE/ETHNICITY
+
+# Acquiring race ethnicity data for Queens County, New York
+queens_race <- get_decennial(
+  geography = "tract",
+  state = "NY",
+  county = "Queens",
+  variables = c(
+    Hispanic = "P2_002N",
+    White = "P2_005N",
+    Black = "P2_006N",
+    Native = "P2_007N",
+    Asian = "P2_008N"
+  ),
+  summary_var = "P2_001N",
+  year = 2020,
+  geometry = TRUE
+) %>%
+  mutate(percent = 100 * (value / summary_value))
+
+# Preparing data for dot density map
+queens_dots <- queens_race %>%
+  as_dot_density(
+    value = "value",
+    values_per_dot = 100,
+    group = "variable"
+  )
+
+# Creating dot density map using tmap tm_dots()
+tmap_mode("view") # go from static to interactive map by changing "view" to "plot"
+
+background_tracts <- filter(queens_race, variable == "White")
+tm_shape(background_tracts) +
+  tm_polygons(col = "white",
+              border.col = "grey") +
+  tm_shape(queens_dots) +
+  tm_dots(col = "variable",
+          palette = "brewer.set2",
+          size = 0.1) +
+  tm_layout(legend.outside = TRUE) + 
+  tm_title("Race/ethnicity in Queens County, NY, 2020 Census, 1 dot = 100 people")
+
+#-------------------------------------------------------------------------------
+# CREATING A GRADUATED SYMBOL MAP OF YOUNG PERSONS IN AN AREA
+
+# Acquire and examine 2020 ACS variables
+acs_2020_variables <- load_variables(2020, "acs5", cache = TRUE)
+
+# Filtering to find age range of interest: 22-24 years (this is my personal age range which interests me)
+sex_by_age <- acs_2020_variables %>%
+  filter(concept == "SEX BY AGE")
+
+# Combining males and females age group of 22 to 24 years
+total_males_females <- c(
+  "B01001_010",  # Males age 22 to 24
+  "B01001_034")  # Females age 22 to 24
+
+queens_age <- get_acs(
+  geography = "tract",
+  state = "NY",
+  county = "Queens",
+  variables = total_males_females,
+  year = 2020,
+  geometry = TRUE
+)
+
+# Graduated symbol map
+tm_shape(queens_age) +
+  tm_polygons() +
+  tm_bubbles(size = "estimate", fill_alpha = 0.5,
+             col = "tomato",
+             title.size = "People Age 22 to 24 Years - 2020 ACS Data") +
+  tm_layout(legend.outside = TRUE,
+            legend.outside.position = "bottom")
+
+#-------------------------------------------------------------------------------
+# CREATING AN INCOME MAP
+
+# Acquiring income data for Queens County, NY
+queens_income <- get_acs(
+  geography = "tract",
+  variables = "B19013_001",
+  state = "NY",
+  county = "Queens",
+  year = 2020,
+  geometry = TRUE
+)
+
+# Mapping income data with ggplot2
+ggplot(data = queens_income, aes(fill = estimate)) +
+  geom_sf() +
+  scale_fill_distiller(palette = "YlGnBu",
+                       direction = 1) +
+  labs(title = "Income in Queens County, NY, 2020",
+       caption = "Data source: 2020 ACS, US Census Bureau",
+       fill = "ACS estimate") +
+  theme_void()
