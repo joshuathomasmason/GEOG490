@@ -60,11 +60,11 @@ tx_tracts_dens <- tx_tracts %>%
 # Tabulating new groups with Hanberry LandScan thresholds
 tx_tracts_recode <- tx_tracts_dens %>%
   mutate(pop_class = case_when(
-    between(pop_dens, 0, 250) ~ "Exurban",
-    between(pop_dens, 250, 550) ~ "SuburbanLow",
-    between(pop_dens, 550, 800) ~ "SuburbanHigh",
-    between(pop_dens, 800, 1900) ~ "UrbanLow",
-    pop_dens > 1900 ~ "UrbanHigh"
+    between(pop_dens, 0, 550) ~ "Exurban",
+    between(pop_dens, 550, 1000) ~ "SuburbanLow",
+    between(pop_dens, 1000, 1900) ~ "SuburbanHigh",
+    between(pop_dens, 1900, 4500) ~ "UrbanLow",
+    pop_dens > 4500 ~ "UrbanHigh"
   ),
   pop_class = factor(
     pop_class,
@@ -315,6 +315,37 @@ tx_pyramid <- tx_pyramid %>%
     )
   )    
 
+#Fixing bug in the pyramid, re-ordering the y-axis age_group
+tx_pyramid <- tx_pyramid %>%
+  mutate(
+    age_group = factor(age_group,
+                       levels = c("Under 5 years",
+                                  "5 to 9 years",
+                                  "10 to 14 years",
+                                  "15 to 17 years",
+                                  "18 to 19 years",
+                                  "20 years",
+                                  "21 years",
+                                  "22 to 24 years",
+                                  "25 to 29 years",
+                                  "30 to 34 years",
+                                  "35 to 39 years",
+                                  "40 to 44 years",
+                                  "45 to 49 years",
+                                  "50 to 54 years",
+                                  "55 to 59 years",
+                                  "60 to 61 years",
+                                  "62 to 64 years",
+                                  "65 to 66 years",
+                                  "67 to 69 years",
+                                  "70 to 74 years",
+                                  "75 to 79 years",
+                                  "80 to 84 years",
+                                  "85 years and over"
+                         
+                       ))
+  )
+
 # Overall population pyramid for Ausin MSA    
 ggplot(tx_pyramid, aes(x = estimate, y = age_group, fill = sex)) + 
   geom_col() +
@@ -418,3 +449,58 @@ ggplot(tx_median_income) +
   geom_sf(aes(fill = hotspot), color = "grey90", size = 0.1) +
   scale_fill_manual(values = c("orange", "blue", "grey")) +
   theme_void()
+
+# Plotting a map of Austin MSA counties
+ggplot() +
+  geom_sf(data = tx_tracts, fill = "white", color = "grey") +
+  geom_sf(data = tx_education, fill = NA, color = "orange") +
+  theme_void()
+
+# Location Quotient for Austin MSA
+tx_tracts_wide <- get_acs(geography = "tract",
+                          year = 2020,
+                          variables = c(tpop = "B03002_001",
+                                        white = "B03002_003", black = "B03002_004",
+                                        asian = "B03002_006", hisp = "B03002_012"),
+                          state = "TX",
+                          survey = "acs5",
+                          output = "wide",
+                          geometry = TRUE) %>%
+  st_transform(6580) %>%
+  st_filter(tx_metro, .predicate = st_within) %>%
+  na.omit()
+
+tx_tracts_wide <- tx_tracts_wide %>%
+  mutate(whitec = sum(whiteE), asianc = sum(asianE),
+         blackc = sum(blackE), hispc = sum(hispE),
+         tpopc = sum(tpopE))
+
+tx_quotient <- tx_tracts_wide %>%
+  mutate(blklq = (blackE/tpopE)/(blackc/tpopc),
+         asnlq = (asianE/tpopE)/(asianc/tpopc),
+         hisplq = (hispE/tpopE)/(hispc/tpopc),
+         whitelq = (whiteE/tpopE)/(whitec/tpopc))
+
+tx_quotient %>%
+  ggplot() +
+  geom_histogram(mapping = aes(x=blklq), na.rm=TRUE) +
+  xlab("Black Location Quotient")
+
+# Map of Black Location Quotient in Austin MSA
+tmap_mode("view")
+
+tm_shape(tx_quotient, unit = "mi") +
+  tm_polygons(fill = "asnlq",
+              fill.scale = tm_scale(style = "quantile",
+                                    values = "brewer.blues"),
+              fill.legend = tm_legend(title = "Black Location Quotient"))
+
+# White LQ
+ggplot(tx_quotient) +
+  geom_sf(aes(fill = whitelq), color = NA) +
+  scale_fill_distiller(
+    palette = "Blues",
+    direction = 1
+  ) +
+  theme_void() +
+  labs(fill = "White Population\nLocation Quotient")
