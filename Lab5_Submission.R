@@ -38,7 +38,7 @@ ggplot() +
 # Uses default spatial predicate, st_intersects().
 dc_va_md_wv_tracts <- dc_va_md_wv_tracts[dc_va_md_wv_metro, ]
 
-# Subsetting returns all tracts that intersect the extent of Kansas City metro area
+# Subsetting returns all tracts that intersect the extent of metro area
 ggplot() +
   geom_sf(data = dc_va_md_wv_tracts, fill = "white", color = "grey") +
   geom_sf(data = dc_va_md_wv_metro, fill = NA, color = "blue") +
@@ -52,12 +52,12 @@ dc_va_md_wv_tracts_within <- dc_va_md_wv_tracts %>%
 # Final map of Washington-Arlington-Alexandria metropolitan area (1,486 total tracts within)
 ggplot() +
   geom_sf(data = dc_va_md_wv_tracts_within, fill = "white", color = "grey") +
-  geom_sf(data = dc_va_md_wv_metro, fill = NA, color = "blue") +
+  geom_sf(data = dc_va_md_wv_metro, fill = NA, color = "orange") +
   theme_void()
 
 #-------------------------------------------------------------------------------
 
-# Replicating erase_water() workflow for 
+# Replicating erase_water() workflow for Cascade County
 
 # Using suggest_crs()
 mt_counties <- counties("MT", cb = TRUE)
@@ -144,7 +144,7 @@ sf_tracts$lag_estimate <- lag.listw(weights, sf_tracts$estimate)
 # Scatter plot of income in metro area
 ggplot(sf_tracts, aes(x = estimate, y = lag_estimate)) +
   geom_point(alpha = 0.3) +
-  geom_abline(color = "red") +
+  geom_abline(color = "orange") +
   theme_minimal() +
   labs(title = "Median income by Census tract, San Francisco-Oakland-Berkeley CA",
        x = "Median income",
