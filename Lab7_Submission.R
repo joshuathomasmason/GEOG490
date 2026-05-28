@@ -129,3 +129,48 @@ tm_shape(pittsburgh_quotient, unit = "mi") +
               fill.scale = tm_scale(style = "quantile",
                                     values = "brewer.blues"),
               fill.legend = tm_legend(title = "Asian Location Quotient"))
+
+# Map with toggles
+tmap_mode("view")
+
+tm_shape(pittsburgh_quotient, unit = "mi") +
+  
+  tm_polygons(
+    fill = "asnlq",
+    group = "Asian LQ",
+    fill.scale = tm_scale(
+      style = "quantile",
+      values = "brewer.blues"
+    ),
+    fill.legend = tm_legend(title = "Asian Location Quotient")
+  ) +
+  
+  tm_polygons(
+    fill = "blklq",
+    group = "Black LQ",
+    fill.scale = tm_scale(
+      style = "quantile",
+      values = "brewer.reds"
+    ),
+    fill.legend = tm_legend(title = "Black Location Quotient")
+  ) +
+  
+  tm_polygons(
+    fill = "whitelq",
+    group = "White LQ",
+    fill.scale = tm_scale(
+      style = "quantile",
+      values = "brewer.greys"
+    ),
+    fill.legend = tm_legend(title = "White Location Quotient")
+  ) +
+  
+  tm_polygons(
+    fill = "hisplq",
+    group = "Hispanic LQ",
+    fill.scale = tm_scale(
+      style = "quantile",
+      values = "brewer.greens"
+    ),
+    fill.legend = tm_legend(title = "Hispanic Location Quotient")
+  )

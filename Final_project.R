@@ -208,3 +208,120 @@ ggplot(seg_erase_water) +
   ) +
   theme_void() +
   labs(fill = "Local\nsegregation index")
+
+#-------------------------------------------------------------------------------
+
+# RACE/ETHNICITY LOCATION QUOTIENTS FOR PITTSBURGH, PA MSA
+
+# Location Quotient
+pa_tracts_wide <- get_acs(geography = "tract",
+                          year = 2020,
+                          variables = c(tpop = "B03002_001",
+                                        white = "B03002_003",
+                                        black = "B03002_004",
+                                        asian = "B03002_006",
+                                        hisp = "B03002_012"),
+                          state = "PA",
+                          survey = "acs5",
+                          output = "wide",
+                          geometry = TRUE) %>%
+  st_transform(6565) %>%
+  st_filter(pa_metro, .predicate = st_within) %>%
+  na.omit()
+
+pa_tracts_wide <- pa_tracts_wide %>%
+  mutate(whitec = sum(whiteE), asianc = sum(asianE),
+         blackc = sum(blackE), hispc = sum(hispE),
+         tpopc = sum(tpopE))
+
+pittsburgh_quotient <- pa_tracts_wide %>%
+  mutate(blklq = (blackE/tpopE)/(blackc/tpopc),
+         asnlq = (asianE/tpopE)/(asianc/tpopc),
+         hisplq = (hispE/tpopE)/(hispc/tpopc),
+         whitelq = (whiteE/tpopE)/(whitec/tpopc))
+
+pittsburgh_quotient %>%
+  ggplot() +
+  geom_histogram(mapping = aes(x=asnlq), na.rm=TRUE) +
+  xlab("Asian Location Quotient")
+
+# Map of all LQ's with toggles in Pittsburgh MSA
+tmap_mode("view")
+
+tm_shape(pittsburgh_quotient, unit = "mi") +
+  tm_polygons(
+    fill = "asnlq",
+    group = "Asian LQ",
+    fill.scale = tm_scale(
+      style = "quantile",
+      values = "brewer.blues"
+    ),
+    fill.legend = tm_legend(title = "Asian Location Quotient")
+  ) +
+  tm_polygons(
+    fill = "blklq",
+    group = "Black LQ",
+    fill.scale = tm_scale(
+      style = "quantile",
+      values = "brewer.reds"
+    ),
+    fill.legend = tm_legend(title = "Black Location Quotient")
+  ) +
+  tm_polygons(
+    fill = "whitelq",
+    group = "White LQ",
+    fill.scale = tm_scale(
+      style = "quantile",
+      values = "brewer.greys"
+    ),
+    fill.legend = tm_legend(title = "White Location Quotient")
+  ) +
+  tm_polygons(
+    fill = "hisplq",
+    group = "Hispanic LQ",
+    fill.scale = tm_scale(
+      style = "quantile",
+      values = "brewer.greens"
+    ),
+    fill.legend = tm_legend(title = "Hispanic Location Quotient")
+  )
+
+#-------------------------------------------------------------------------------
+
+# DEFINING URBAN SPACE WITH HANBERRY THRESHOLDS
+
+# Population density, people per square kilometer
+# ALAND / 1e6 because ALAND default values are in square meters
+pa_tracts_dens <- tract_pop %>%
+  mutate(pop_dens = (tract_pop$value) / (tract_pop$ALAND / 1e6))
+
+# Tabulating new groups with Hanberry LandScan thresholds
+pa_tracts_recode <- pa_tracts_dens %>%
+  mutate(pop_class = case_when(
+    between(pop_dens, 0, 550) ~ "Exurban",
+    between(pop_dens, 550, 1000) ~ "SuburbanLow",
+    between(pop_dens, 1000, 1900) ~ "SuburbanHigh",
+    between(pop_dens, 1900, 4500) ~ "UrbanLow",
+    pop_dens > 4500 ~ "UrbanHigh"
+  ),
+  pop_class = factor(
+    pop_class,
+    levels = c(
+      "Exurban",
+      "SuburbanLow",
+      "SuburbanHigh",
+      "UrbanLow",
+      "UrbanHigh"
+    ),
+    ordered = TRUE # Fixes issue with ggplot putting UrbanHigh before UrbanLow
+  ))
+
+# Map of Hanberry Threshold subgeographies
+ggplot(pa_tracts_recode) +
+  geom_sf(aes(fill = pop_class), color = NA) +
+  scale_fill_brewer(
+    palette = "Blues",
+    direction = 1
+  ) +
+  theme_void() +
+  labs(fill = "Hanberry\nPopulation Thresholds")
