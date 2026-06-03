@@ -1,0 +1,506 @@
+# Wednesday, May 6, 2026
+# Replication Study
+# Student: Joshua Mason
+# Notes:
+
+# Libraries
+library(tigris)
+library(tidyverse)
+library(tidycensus)
+library(sf)
+library(crsuggest)
+library(spdep)
+options(tigris_use_cache = TRUE)
+
+#-------------------------------------------------------------------------------
+
+# Acquiring Austin-Round Rock-Georgetown Metropolitan Statistical Area
+# Tract level data in Texas, USA
+
+# Using suggest_crs() to find appropriate projection for Austin MSA
+tx_counties <- counties("TX", cb = TRUE)
+
+tx_crs <- suggest_crs(tx_counties)
+
+# CRS used: NAD83(2011) / Texas Centric Lambert Conformal
+tx_metro <- core_based_statistical_areas(cb = TRUE, year = 2020) %>%
+  filter(str_detect(NAME, "Austin-Round Rock-Georgetown")) %>%
+  st_transform(6580)
+
+# Tracts with total population from 2020 decennial Census
+# Also uses spatial sub-setting with spatial predicate st_within()
+# ALAND column uses square meters as measurement
+tx_tracts <- get_decennial(
+  geography = "tract",
+  variables = "P1_001N",
+  state = "TX",
+  year = 2020,
+  geometry = TRUE,
+  keep_geo_vars = TRUE
+) %>%
+  st_transform(6580) %>%
+  st_filter(tx_metro, .predicate = st_within) %>%
+  na.omit()
+
+# Map of Austin-Round Rock-Georgetown metropolitan area (503 total tracts within)
+ggplot() +
+  geom_sf(data = tx_tracts, fill = "white", color = "grey") +
+  geom_sf(data = tx_metro, fill = NA, color = "blue") +
+  theme_void()
+
+# How many people live in this MSA? 
+# Answer: 2,283,371 people.
+sum(tx_tracts$value)
+
+# Population density, people per square kilometer
+# ALAND / 1e6 because ALAND default values are in square meters
+tx_tracts_dens <- tx_tracts %>%
+  mutate(pop_dens = (tx_tracts$value) / (tx_tracts$ALAND / 1e6))
+
+# Tabulating new groups with Hanberry LandScan thresholds
+tx_tracts_recode <- tx_tracts_dens %>%
+  mutate(pop_class = case_when(
+    between(pop_dens, 0, 550) ~ "Exurban",
+    between(pop_dens, 550, 1000) ~ "SuburbanLow",
+    between(pop_dens, 1000, 1900) ~ "SuburbanHigh",
+    between(pop_dens, 1900, 4500) ~ "UrbanLow",
+    pop_dens > 4500 ~ "UrbanHigh"
+  ),
+  pop_class = factor(
+    pop_class,
+    levels = c(
+      "Exurban",
+      "SuburbanLow",
+      "SuburbanHigh",
+      "UrbanLow",
+      "UrbanHigh"
+    ),
+    ordered = TRUE # Fixes issue with ggplot putting UrbanHigh before UrbanLow
+  ))
+
+# Map of Hanberry Threshold subgeographies
+ggplot(tx_tracts_recode) +
+  geom_sf(aes(fill = pop_class), color = NA) +
+  scale_fill_brewer(
+    palette = "Blues",
+    direction = 1
+  ) +
+  theme_void() +
+  labs(fill = "Hanberry\nPopulation Thresholds")
+
+#-------------------------------------------------------------------------------
+# Getting ACS Median Household Income
+tx_median_income <- get_acs(
+  geography = "tract",
+  variables = "B19013_001",
+  state = "TX",
+  year = 2020,
+  geometry = TRUE
+) %>%
+  st_transform(6580) %>%
+  st_filter(tx_metro, .predicate = st_within) %>%
+  na.omit()
+
+tx_income_groups <- tx_median_income %>%
+  mutate(
+    income_group = case_when(
+      between(estimate, 0, 10000) ~ "0 to 10,000",
+      between(estimate, 10000, 25000) ~ "10,000 to 25,000",
+      between(estimate, 25000, 50000) ~ "25,000 to 50,000",
+      between(estimate, 50000, 75000) ~ "50,000 to 75,000",
+      between(estimate, 75000, 100000) ~ "75,000 to 100,000",
+      between(estimate, 100000, 125000) ~ "100,000 to 125,000",
+      between(estimate, 125000, 150000) ~ "125,000 to 150,000",
+      between(estimate, 150000, 200000) ~ "150,000 to 200,000",
+      between(estimate, 200000, 250000) ~ "200,000 to 250,000",
+      estimate > 250000 ~ "> 250,000"
+    )
+  )
+
+# Plotting income
+ggplot(tx_income_groups, aes(x = estimate, y = income_group)) +
+  geom_col()
+
+# Mapping Median Household Income 
+ggplot(tx_median_income) +
+  geom_sf(aes(fill = estimate), color = NA) +
+  scale_fill_distiller(
+    palette = "Blues",
+    direction = 1
+  ) +
+  theme_void() +
+  labs(fill = "Median Household\nIncome Estimate")
+
+#-------------------------------------------------------------------------------
+# Getting ACS data on people with a Bachelor's degree or higher (Counties)
+tx_education <- get_acs(
+  geography = "county",
+  variables = c("B15003_022E", "B15003_023E", "B15003_024E", "B15003_025E"),
+  state = "TX",
+  year = 2020,
+  geometry = TRUE
+) %>%
+  st_transform(6580) %>%
+  st_filter(tx_metro, .predicate = st_within) %>%
+  na.omit()
+
+tx_education <- tx_education %>%
+  mutate(
+    degree = case_when(
+      variable == "B15003_022" ~ "Bachelor's",
+      variable == "B15003_023" ~ "Master's",
+      variable == "B15003_024" ~ "Professional",
+      variable == "B15003_025" ~ "Doctorate"
+    )
+  )
+
+# Horizontal Bar Chart of Education Level in Austin MSA (County Data)
+ggplot(tx_education,
+       aes(x = estimate,
+           y = reorder(NAME, estimate),
+          fill = degree)) +
+  geom_col() + 
+  labs(title = "Education Level in Austin MSA") +
+  theme_minimal()
+
+#-------------------------------------------------------------------------------
+# Pyramid Plot for Texas age and suburban/urban representation
+tx_age <- get_acs(
+  geography = "tract",
+  variables = c("B01001_003E",
+                "B01001_004E",
+                "B01001_005E",
+                "B01001_006E",
+                "B01001_007E",
+                "B01001_008E",
+                "B01001_009E",
+                "B01001_010E",
+                "B01001_011E",
+                "B01001_012E",
+                "B01001_013E",
+                "B01001_014E",
+                "B01001_015E",
+                "B01001_016E",
+                "B01001_017E",
+                "B01001_018E",
+                "B01001_019E",
+                "B01001_020E",
+                "B01001_021E",
+                "B01001_022E",
+                "B01001_023E",
+                "B01001_024E",
+                "B01001_025E", # last entry of males, 85 +
+                "B01001_027E",
+                "B01001_028E",
+                "B01001_029E",
+                "B01001_030E",
+                "B01001_031E",
+                "B01001_032E",
+                "B01001_033E",
+                "B01001_034E",
+                "B01001_035E",
+                "B01001_036E",
+                "B01001_037E",
+                "B01001_038E",
+                "B01001_039E",
+                "B01001_040E",
+                "B01001_041E",
+                "B01001_042E",
+                "B01001_043E",
+                "B01001_044E",
+                "B01001_045E",
+                "B01001_046E",
+                "B01001_047E",
+                "B01001_048E",
+                "B01001_049E" # last entry of females, 85 +
+                ),
+  state = "TX",
+  year = 2020,
+  geometry = TRUE
+) %>% 
+  st_transform(6580) %>%
+  st_filter(tx_metro, .predicate = st_within) %>%
+  na.omit()
+
+# Attaching to urban/suburban classifications from Hanberry
+tx_age_joined <- tx_age %>%
+  left_join(
+    tx_tracts_recode %>%
+      st_drop_geometry() %>%
+      select(GEOID, pop_class),
+    by = "GEOID"
+  )
+
+# Set up pyramid format, males become negative
+tx_pyramid <- tx_age_joined %>%
+  mutate(
+    sex = case_when(
+      variable %in% c("B01001_003",
+                      "B01001_004",
+                      "B01001_005",
+                      "B01001_006",
+                      "B01001_007",
+                      "B01001_008",
+                      "B01001_009",
+                      "B01001_010",
+                      "B01001_011",
+                      "B01001_012",
+                      "B01001_013",
+                      "B01001_014",
+                      "B01001_015",
+                      "B01001_016",
+                      "B01001_017",
+                      "B01001_018",
+                      "B01001_019",
+                      "B01001_020",
+                      "B01001_021",
+                      "B01001_022",
+                      "B01001_023",
+                      "B01001_024",
+                      "B01001_025") ~ "Male",
+      variable %in% c("B01001_027",
+                      "B01001_028",
+                      "B01001_029",
+                      "B01001_030",
+                      "B01001_031",
+                      "B01001_032",
+                      "B01001_033",
+                      "B01001_034",
+                      "B01001_035",
+                      "B01001_036",
+                      "B01001_037",
+                      "B01001_038",
+                      "B01001_039",
+                      "B01001_040",
+                      "B01001_041",
+                      "B01001_042",
+                      "B01001_043",
+                      "B01001_044",
+                      "B01001_045",
+                      "B01001_046",
+                      "B01001_047",
+                      "B01001_048",
+                      "B01001_049") ~ "Female",
+              ),
+    estimate = ifelse(sex == "Male", -estimate, estimate)
+  )
+    
+# Classifying age groups
+tx_pyramid <- tx_pyramid %>%
+  mutate(
+    age_group = case_when(
+      variable %in% c("B01001_003","B01001_027") ~ "Under 5 years",
+      variable %in% c("B01001_004","B01001_028") ~ "5 to 9 years",
+      variable %in% c("B01001_005","B01001_029") ~ "10 to 14 years",
+      variable %in% c("B01001_006","B01001_030") ~ "15 to 17 years",
+      variable %in% c("B01001_007","B01001_031") ~ "18 to 19 years",
+      variable %in% c("B01001_008","B01001_032") ~ "20 years",
+      variable %in% c("B01001_009","B01001_033") ~ "21 years",
+      variable %in% c("B01001_010","B01001_034") ~ "22 to 24 years",
+      variable %in% c("B01001_011","B01001_035") ~ "25 to 29 years",
+      variable %in% c("B01001_012","B01001_036") ~ "30 to 34 years",
+      variable %in% c("B01001_013","B01001_037") ~ "35 to 39 years",
+      variable %in% c("B01001_014","B01001_038") ~ "40 to 44 years",
+      variable %in% c("B01001_015","B01001_039") ~ "45 to 49 years",
+      variable %in% c("B01001_016","B01001_040") ~ "50 to 54 years",
+      variable %in% c("B01001_017","B01001_041") ~ "55 to 59 years",
+      variable %in% c("B01001_018","B01001_042") ~ "60 to 61 years",
+      variable %in% c("B01001_019","B01001_043") ~ "62 to 64 years",
+      variable %in% c("B01001_020","B01001_044") ~ "65 to 66 years",
+      variable %in% c("B01001_021","B01001_045") ~ "67 to 69 years",
+      variable %in% c("B01001_022","B01001_046") ~ "70 to 74 years",
+      variable %in% c("B01001_023","B01001_047") ~ "75 to 79 years",
+      variable %in% c("B01001_024","B01001_048") ~ "80 to 84 years",
+      variable %in% c("B01001_025","B01001_049") ~ "85 years and over"
+    )
+  )    
+
+#Fixing bug in the pyramid, re-ordering the y-axis age_group
+tx_pyramid <- tx_pyramid %>%
+  mutate(
+    age_group = factor(age_group,
+                       levels = c("Under 5 years",
+                                  "5 to 9 years",
+                                  "10 to 14 years",
+                                  "15 to 17 years",
+                                  "18 to 19 years",
+                                  "20 years",
+                                  "21 years",
+                                  "22 to 24 years",
+                                  "25 to 29 years",
+                                  "30 to 34 years",
+                                  "35 to 39 years",
+                                  "40 to 44 years",
+                                  "45 to 49 years",
+                                  "50 to 54 years",
+                                  "55 to 59 years",
+                                  "60 to 61 years",
+                                  "62 to 64 years",
+                                  "65 to 66 years",
+                                  "67 to 69 years",
+                                  "70 to 74 years",
+                                  "75 to 79 years",
+                                  "80 to 84 years",
+                                  "85 years and over"
+                         
+                       ))
+  )
+
+# Overall population pyramid for Ausin MSA    
+ggplot(tx_pyramid, aes(x = estimate, y = age_group, fill = sex)) + 
+  geom_col() +
+  scale_fill_manual(values = c(
+    "Male" = "lightblue",
+    "Female" = "maroon"
+  ))
+
+# Population pyramid for only urban
+tx_urbanites <- tx_pyramid %>%
+  filter(pop_class %in% c("UrbanLow", "UrbanHigh"))
+
+ggplot(tx_urbanites, aes(x = estimate, y = age_group, fill = sex)) + 
+  geom_col() +
+  scale_fill_manual(values = c(
+    "Male" = "lightblue",
+    "Female" = "maroon"
+  ))
+
+# Population pyramid for only suburban
+tx_suburbanites <- tx_pyramid %>%
+  filter(pop_class %in% c("SurbanLow", "SuburbanHigh"))
+
+ggplot(tx_suburbanites, aes(x = estimate, y = age_group, fill = sex)) + 
+  geom_col() +
+  scale_fill_manual(values = c(
+    "Male" = "lightblue",
+    "Female" = "maroon"
+  ))
+
+#-------------------------------------------------------------------------------
+# Hotspot analysis for Austin MSA
+
+# Identifying neighbors
+neighbors <- poly2nb(tx_median_income, queen = TRUE)
+summary(neighbors)
+
+tx_coords <- tx_median_income %>%
+  st_centroid() %>%
+  st_coordinates()
+plot(tx_median_income$geometry)
+plot(neighbors,
+     coords = tx_coords,
+     add = TRUE,
+     col = "blue",
+     points = FALSE)
+
+# Getting the row indices of the neighbors of the Census tract at row index 1
+neighbors[[1]]
+
+# Converting the neighbors list object into spatial weights
+weights <- nb2listw(neighbors, style = "W")
+
+weights$weights[[1]] # Tract at row index 1 has 9 neighbors
+
+# Creating new column in sf_tracts, lag_estimate, 
+# representing average income for neighbors
+# of each Census tract in San Francisco-Oakland-Berkeley metropolitan area
+tx_median_income$lag_estimate <- lag.listw(weights, tx_median_income$estimate)
+
+# Scatter plot of income in metro area
+ggplot(tx_median_income, aes(x = estimate, y = lag_estimate)) +
+  geom_point(alpha = 0.3) +
+  geom_abline(color = "orange") +
+  theme_minimal() +
+  labs(title = "Median income by Census tract, Austin MSA",
+       x = "Median income",
+       y = "Spatial lag, Median income",
+       caption = "Data source: 2016-2020 ACS via the tidycensus R package.")
+
+# Moran test (reject null hypothesis of spatial randomness)
+# Small p-value also suggests data are spatially clustered
+moran.test(tx_median_income$estimate, weights)
+
+# Getis-Ord local G statistic
+# For Gi*, re-compute the weights with`include.self()`
+localg_weights <- nb2listw(include.self(neighbors))
+
+# This was a bug in the Walker chapter code. It has to be numeric to plot
+tx_median_income$localG <- localG(tx_median_income$estimate, localg_weights)
+
+# Converting to numeric
+numeric_g <- as.numeric(localG(tx_median_income$estimate, localg_weights))
+
+ggplot(tx_median_income) +
+  geom_sf(aes(fill = numeric_g), color = NA) +
+  scale_fill_distiller(palette = "RdYlBu") +
+  theme_void() +
+  labs(fill = "Local Gi* statistic")
+
+# Setting hot spot thresholds
+tx_median_income <- tx_median_income %>%
+  mutate(hotspot = case_when(
+    localG >= 2.56 ~ "High cluster",
+    localG <= -2.56 ~ "Low cluster",
+    TRUE ~ "Not significant"
+  ))
+
+# Plotting high and low clusters (Final Map)
+ggplot(tx_median_income) +
+  geom_sf(aes(fill = hotspot), color = "grey90", size = 0.1) +
+  scale_fill_manual(values = c("orange", "blue", "grey")) +
+  theme_void()
+
+# Plotting a map of Austin MSA counties
+ggplot() +
+  geom_sf(data = tx_tracts, fill = "white", color = "grey") +
+  geom_sf(data = tx_education, fill = NA, color = "orange") +
+  theme_void()
+
+# Location Quotient for Austin MSA
+tx_tracts_wide <- get_acs(geography = "tract",
+                          year = 2020,
+                          variables = c(tpop = "B03002_001",
+                                        white = "B03002_003", black = "B03002_004",
+                                        asian = "B03002_006", hisp = "B03002_012"),
+                          state = "TX",
+                          survey = "acs5",
+                          output = "wide",
+                          geometry = TRUE) %>%
+  st_transform(6580) %>%
+  st_filter(tx_metro, .predicate = st_within) %>%
+  na.omit()
+
+tx_tracts_wide <- tx_tracts_wide %>%
+  mutate(whitec = sum(whiteE), asianc = sum(asianE),
+         blackc = sum(blackE), hispc = sum(hispE),
+         tpopc = sum(tpopE))
+
+tx_quotient <- tx_tracts_wide %>%
+  mutate(blklq = (blackE/tpopE)/(blackc/tpopc),
+         asnlq = (asianE/tpopE)/(asianc/tpopc),
+         hisplq = (hispE/tpopE)/(hispc/tpopc),
+         whitelq = (whiteE/tpopE)/(whitec/tpopc))
+
+tx_quotient %>%
+  ggplot() +
+  geom_histogram(mapping = aes(x=blklq), na.rm=TRUE) +
+  xlab("Black Location Quotient")
+
+# Map of Black Location Quotient in Austin MSA
+tmap_mode("view")
+
+tm_shape(tx_quotient, unit = "mi") +
+  tm_polygons(fill = "asnlq",
+              fill.scale = tm_scale(style = "quantile",
+                                    values = "brewer.blues"),
+              fill.legend = tm_legend(title = "Black Location Quotient"))
+
+# White LQ
+ggplot(tx_quotient) +
+  geom_sf(aes(fill = whitelq), color = NA) +
+  scale_fill_distiller(
+    palette = "Blues",
+    direction = 1
+  ) +
+  theme_void() +
+  labs(fill = "White Population\nLocation Quotient")

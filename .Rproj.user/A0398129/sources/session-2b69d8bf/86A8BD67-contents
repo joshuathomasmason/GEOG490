@@ -205,7 +205,7 @@ ggplot(pa_median_income) +
     palette = "Blues",
     direction = 1
   ) +
-  theme_void() +
+  theme_void(base_family = "plexmono") +
   labs(fill = "Median Household\nIncome Estimate")
 
 #-------------------------------------------------------------------------------
@@ -262,7 +262,7 @@ ggplot(seg_erase_water) +
     palette = "Blues",
     direction = 1
   ) +
-  theme_void() +
+  theme_void(base_family = "plexmono") +
   labs(fill = "Local\nsegregation index")
 
 #-------------------------------------------------------------------------------
