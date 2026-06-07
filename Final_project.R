@@ -10,8 +10,8 @@ library(tidycensus)
 library(sf)
 library(crsuggest)
 library(showtext)
-#library(segregation)
-#library(tmap)
+library(segregation)
+library(tmap)
 options(tigris_use_cache = TRUE)
 font_add_google("IBM Plex Mono", "plexmono")
 showtext_auto()
@@ -205,7 +205,7 @@ ggplot(pa_median_income) +
     palette = "Blues",
     direction = 1
   ) +
-  theme_void() +
+  theme_void(base_family = "plexmono") +
   labs(fill = "Median Household\nIncome Estimate")
 
 #-------------------------------------------------------------------------------
@@ -253,16 +253,16 @@ joined_local_seg <- seg_data %>%
   left_join(pa_local_seg, by = "GEOID")
 
 # Note: If erase water is slow, try larger area threshold value
-seg_erase_water <- erase_water(joined_local_seg)
+#seg_erase_water <- erase_water(joined_local_seg)
 
 # Multi-group segregation index for Pittsburgh, PA MSA
-ggplot(seg_erase_water) +
+ggplot(joined_local_seg) +
   geom_sf(aes(fill = ls), color = NA) +
   scale_fill_distiller(
     palette = "Blues",
     direction = 1
   ) +
-  theme_void() +
+  theme_void(base_family = "plexmono") +
   labs(fill = "Local\nsegregation index")
 
 #-------------------------------------------------------------------------------
@@ -379,5 +379,5 @@ ggplot(pa_tracts_recode) +
     palette = "Blues",
     direction = 1
   ) +
-  theme_void() +
+  theme_void(base_family = "plexmono") +
   labs(fill = "Hanberry\nPopulation Thresholds")
